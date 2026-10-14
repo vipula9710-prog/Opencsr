@@ -5,7 +5,7 @@ dist-scripts/
 coverage/
 playwright-report/
 test-results/
-storage/
+/storage/
 *.tsbuildinfo
 next-env.d.ts
 .env
@@ -15,5 +15,5 @@ next-env.d.ts
 .DS_Store
 npm-debug.log*
 backups/
-storage-test/
+/storage-test/
 .vitest-db-url

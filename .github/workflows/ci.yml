@@ -20,7 +20,7 @@ jobs:
           POSTGRES_DB: opencsr_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U opencsr" --health-interval 5s --health-timeout 5s --health-retries 20
+          --health-cmd "pg_isready -U opencsr -d opencsr_test" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       DATABASE_URL: postgresql://opencsr:opencsr@localhost:5432/opencsr_test?schema=public
       TEST_DATABASE_URL: postgresql://opencsr:opencsr@localhost:5432/opencsr_test
