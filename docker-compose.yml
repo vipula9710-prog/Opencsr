@@ -1,0 +1,56 @@
+# Local / single-server deployment: PostgreSQL + OpenCSR.
+#   cp .env.example .env   # set AUTH_SECRET and POSTGRES_PASSWORD
+#   docker compose up -d --build
+#   docker compose exec app node dist-scripts/create-admin.js --email you@example.org --name "Your Name"
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opencsr
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: opencsr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opencsr -d opencsr"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://opencsr:${POSTGRES_PASSWORD}@db:5432/opencsr?schema=public
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET in .env (openssl rand -base64 48)}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /app/storage
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-OpenCSR <no-reply@example.org>}
+      ENABLE_INTERNAL_SCHEDULER: ${ENABLE_INTERNAL_SCHEDULER:-true}
+      JOBS_SECRET: ${JOBS_SECRET:-}
+      DEFAULT_ORGANISATION_SLUG: ${DEFAULT_ORGANISATION_SLUG:-}
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-15}
+    volumes:
+      - storage:/app/storage
+
+volumes:
+  pgdata:
+  storage:

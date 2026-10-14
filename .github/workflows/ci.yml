@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: opencsr
+          POSTGRES_PASSWORD: opencsr
+          POSTGRES_DB: opencsr_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U opencsr" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://opencsr:opencsr@localhost:5432/opencsr_test?schema=public
+      TEST_DATABASE_URL: postgresql://opencsr:opencsr@localhost:5432/opencsr_test
+      AUTH_SECRET: ci-only-secret-value-that-is-long-enough-1234567890
+      APP_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - run: npx prisma generate
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run typecheck
+      - name: Unit & integration tests
+        run: npm test
+      - name: Apply migrations (e2e database)
+        run: npx prisma migrate deploy
+      - name: Production build
+        run: npm run build
+      - name: Seed e2e data
+        env:
+          ADMIN_PASSWORD: E2E-Admin-Password-1
+        run: |
+          node dist-scripts/create-admin.js --email e2e-admin@example.org --name "E2E Admin"
+          node dist-scripts/seed-demo.js --admin e2e-admin@example.org
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        env:
+          E2E_BASE_URL: http://localhost:3000
+          E2E_EMAIL: e2e-admin@example.org
+          E2E_PASSWORD: E2E-Admin-Password-1
+          AUTH_SECRET: ci-only-secret-value-that-is-long-enough-1234567890
+        run: |
+          npx next start -p 3000 &
+          npx wait-on -t 60000 http://localhost:3000/api/health
+          npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: test-results/

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 64" role="img" aria-label="GreenFuture Foundation (fictional demo logo)">
+  <title>GreenFuture Foundation — fictional demo logo</title>
+  <g transform="translate(4 4)">
+    <circle cx="28" cy="28" r="28" fill="#176B45"/>
+    <path d="M28 46V30" stroke="#F4F8F5" stroke-width="3" stroke-linecap="round"/>
+    <path d="M28 34c-7 0-12-5-12-12 7 0 12 5 12 12z" fill="#F4F8F5"/>
+    <path d="M28 30c0-8 5-14 13-14 0 8-5 14-13 14z" fill="#C6A15B"/>
+    <path d="M28 24c-4-3-5-8-3-13 4 3 5 8 3 13z" fill="#F4F8F5" opacity=".85"/>
+    <path d="M18 46h20" stroke="#F4F8F5" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text x="70" y="30" font-family="Poppins, Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#103B2B">GreenFuture</text>
+  <text x="70" y="50" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="500" fill="#176B45" letter-spacing="2">FOUNDATION</text>
+</svg>
