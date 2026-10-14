@@ -1,0 +1,1320 @@
+// OpenCSR database schema.
+//
+// Tenant isolation: every organisation-owned table carries `organisationId`.
+// All application queries go through the service layer in `src/server/services`,
+// which always filters by the organisation of the authenticated context.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Platform, identity and access
+// ---------------------------------------------------------------------------
+
+model SiteSettings {
+  id                    Int       @id @default(1)
+  platformName          String    @default("OpenCSR")
+  setupCompletedAt      DateTime?
+  defaultOrganisationId String?
+  allowPasswordReset    Boolean   @default(true)
+  updatedAt             DateTime  @updatedAt
+}
+
+model Organisation {
+  id                     String   @id @default(cuid())
+  name                   String
+  slug                   String   @unique
+  tagline                String?
+  description            String?
+  email                  String?
+  phone                  String?
+  address                String?
+  websiteUrl             String?
+  currency               String   @default("INR")
+  locale                 String   @default("en-IN")
+  timezone               String   @default("Asia/Kolkata")
+  financialYearStartMonth Int     @default(4)
+  isDemo                 Boolean  @default(false)
+  demoBannerEnabled      Boolean  @default(false)
+  enquiryCategories      String[] @default(["General", "Partnership", "Volunteering", "Media", "Other"])
+  approvalRules          Json     @default("{}")
+  logoId                 String?
+  faviconId              String?
+  archivedAt             DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  logo    MediaAsset? @relation("OrganisationLogo", fields: [logoId], references: [id], onDelete: SetNull)
+  favicon MediaAsset? @relation("OrganisationFavicon", fields: [faviconId], references: [id], onDelete: SetNull)
+
+  memberships         Membership[]
+  focusAreas          FocusArea[]
+  programmes          Programme[]
+  projects            Project[]
+  projectMembers      ProjectMember[]
+  projectStatusChanges ProjectStatusChange[]
+  projectMedia        ProjectMedia[]
+  partners            PartnerOrganisation[]
+  partnerContacts     PartnerContact[]
+  partnerAgreements   PartnerAgreement[]
+  dueDiligenceFields  DueDiligenceField[]
+  budgetPlans         BudgetPlan[]
+  budgetAllocations   BudgetAllocation[]
+  expenditures        Expenditure[]
+  disbursements       Disbursement[]
+  milestones          Milestone[]
+  tasks               Task[]
+  comments            Comment[]
+  approvals           Approval[]
+  impactIndicators    ImpactIndicator[]
+  impactMeasurements  ImpactMeasurement[]
+  documents           Document[]
+  documentVersions    DocumentVersion[]
+  reports             Report[]
+  blogPosts           BlogPost[]
+  categories          Category[]
+  tags                Tag[]
+  authorProfiles      AuthorProfile[]
+  pages               Page[]
+  pageSections        PageSection[]
+  pageRevisions       PageRevision[]
+  navigationItems     NavigationItem[]
+  mediaAssets         MediaAsset[]   @relation("OrganisationMedia")
+  websiteSettings     WebsiteSettings?
+  websiteTheme        WebsiteTheme?
+  themeVersions       ThemeVersion[]
+  enquiries           Enquiry[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  passwordHash    String
+  isPlatformAdmin Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  lastLoginAt     DateTime?
+  passwordChangedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  memberships         Membership[]
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  ownedProjects       Project[]             @relation("ProjectOwner")
+  projectMemberships  ProjectMember[]
+  assignedTasks       Task[]                @relation("TaskAssignee")
+  createdTasks        Task[]                @relation("TaskCreator")
+  blogPosts           BlogPost[]            @relation("BlogAuthor")
+  authorProfiles      AuthorProfile[]
+  notifications       Notification[]
+  comments            Comment[]
+  indicatorsResponsible ImpactIndicator[]   @relation("IndicatorResponsible")
+  measurementsRecorded  ImpactMeasurement[] @relation("MeasurementRecorder")
+  measurementsVerified  ImpactMeasurement[] @relation("MeasurementVerifier")
+  approvalsRequested  Approval[]            @relation("ApprovalRequester")
+  approvalsDecided    Approval[]            @relation("ApprovalDecider")
+  statusChanges       ProjectStatusChange[]
+  documentVersions    DocumentVersion[]
+  mediaUploads        MediaAsset[]          @relation("MediaUploader")
+  auditLogs           AuditLog[]
+  themeVersions       ThemeVersion[]
+  pageRevisions       PageRevision[]
+  partnersVerified    PartnerOrganisation[] @relation("PartnerVerifier")
+  enquiriesAssigned   Enquiry[]             @relation("EnquiryAssignee")
+}
+
+enum Role {
+  ORG_ADMIN
+  CSR_MANAGER
+  PROJECT_MANAGER
+  FINANCE_MANAGER
+  REVIEWER
+  CONTENT_EDITOR
+  AUTHOR
+  VIEWER
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organisationId String
+  role           Role     @default(VIEWER)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organisationId])
+  @@index([organisationId])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RateLimitBucket {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+// ---------------------------------------------------------------------------
+// Programmes and projects
+// ---------------------------------------------------------------------------
+
+model FocusArea {
+  id             String   @id @default(cuid())
+  organisationId String
+  name           String
+  slug           String
+  description    String?
+  icon           String?
+  sortOrder      Int      @default(0)
+  isPublic       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  programmes   Programme[]
+  projects     Project[]
+
+  @@unique([organisationId, slug])
+}
+
+enum ProgrammeStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model Programme {
+  id             String          @id @default(cuid())
+  organisationId String
+  name           String
+  slug           String
+  description    String?
+  focusAreaId    String?
+  status         ProgrammeStatus @default(ACTIVE)
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organisation     Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  focusArea        FocusArea?         @relation(fields: [focusAreaId], references: [id], onDelete: SetNull)
+  projects         Project[]
+  allocations      BudgetAllocation[]
+  impactIndicators ImpactIndicator[]
+  reports          Report[]
+
+  @@unique([organisationId, slug])
+  @@index([organisationId, status])
+}
+
+enum ProjectStatus {
+  DRAFT
+  PLANNED
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  organisationId String
+  programmeId    String?
+  focusAreaId    String?
+  partnerId      String?
+  ownerId        String?
+  title          String
+  slug           String
+  summary        String?
+  description    String?
+  objectives     String?
+  location       String?
+  startDate      DateTime?
+  endDate        DateTime?
+  status         ProjectStatus @default(DRAFT)
+  risks          String?
+  dependencies   String?
+  notes          String?
+  // Public website
+  isPublic       Boolean       @default(false)
+  publicSummary  String?
+  coverImageId   String?
+  archivedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organisation     Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  programme        Programme?            @relation(fields: [programmeId], references: [id], onDelete: SetNull)
+  focusArea        FocusArea?            @relation(fields: [focusAreaId], references: [id], onDelete: SetNull)
+  partner          PartnerOrganisation?  @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  owner            User?                 @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  coverImage       MediaAsset?           @relation("ProjectCover", fields: [coverImageId], references: [id], onDelete: SetNull)
+  members          ProjectMember[]
+  statusChanges    ProjectStatusChange[]
+  media            ProjectMedia[]
+  milestones       Milestone[]
+  tasks            Task[]
+  allocations      BudgetAllocation[]
+  expenditures     Expenditure[]
+  disbursements    Disbursement[]
+  impactIndicators ImpactIndicator[]
+  documents        Document[]
+  reports          Report[]
+  agreements       PartnerAgreement[]
+
+  @@unique([organisationId, slug])
+  @@index([organisationId, status])
+  @@index([organisationId, programmeId])
+}
+
+model ProjectMember {
+  id             String   @id @default(cuid())
+  organisationId String
+  projectId      String
+  userId         String
+  role           String?
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model ProjectStatusChange {
+  id             String         @id @default(cuid())
+  organisationId String
+  projectId      String
+  fromStatus     ProjectStatus?
+  toStatus       ProjectStatus
+  note           String?
+  changedById    String?
+  createdAt      DateTime       @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  changedBy    User?        @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+}
+
+model ProjectMedia {
+  id             String   @id @default(cuid())
+  organisationId String
+  projectId      String
+  mediaAssetId   String
+  caption        String?
+  isPublic       Boolean  @default(false)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  mediaAsset   MediaAsset   @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, mediaAssetId])
+}
+
+// ---------------------------------------------------------------------------
+// Partners (NGO / implementation partner CRM)
+// ---------------------------------------------------------------------------
+
+enum PartnerType {
+  NGO
+  TRUST
+  SOCIETY
+  NOT_FOR_PROFIT_COMPANY
+  GOVERNMENT_BODY
+  COMMUNITY_GROUP
+  ACADEMIC_INSTITUTION
+  SOCIAL_ENTERPRISE
+  VENDOR
+  OTHER
+}
+
+enum VerificationStatus {
+  NOT_STARTED
+  INFORMATION_SUPPLIED
+  DOCUMENTS_UPLOADED
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+model PartnerOrganisation {
+  id                 String             @id @default(cuid())
+  organisationId     String
+  name               String
+  type               PartnerType        @default(NGO)
+  email              String?
+  phone              String?
+  website            String?
+  address            String?
+  city               String?
+  state              String?
+  country            String?
+  registrationNumber String?
+  registrationDetails String?
+  dueDiligence       Json               @default("{}")
+  verificationStatus VerificationStatus @default(NOT_STARTED)
+  verificationNotes  String?
+  verifiedAt         DateTime?
+  verifiedById       String?
+  lastReviewedAt     DateTime?
+  nextReviewDate     DateTime?
+  notes              String?
+  archivedAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  organisation  Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  verifiedBy    User?              @relation("PartnerVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  contacts      PartnerContact[]
+  projects      Project[]
+  agreements    PartnerAgreement[]
+  disbursements Disbursement[]
+  tasks         Task[]
+  documents     Document[]
+
+  @@index([organisationId, verificationStatus])
+  @@index([organisationId, name])
+}
+
+model PartnerContact {
+  id             String   @id @default(cuid())
+  organisationId String
+  partnerId      String
+  name           String
+  designation    String?
+  email          String?
+  phone          String?
+  isPrimary      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  partner      PartnerOrganisation @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([partnerId])
+}
+
+enum DueDiligenceFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+}
+
+model DueDiligenceField {
+  id             String                @id @default(cuid())
+  organisationId String
+  key            String
+  label          String
+  type           DueDiligenceFieldType @default(TEXT)
+  required       Boolean               @default(false)
+  helpText       String?
+  sortOrder      Int                   @default(0)
+  createdAt      DateTime              @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, key])
+}
+
+enum AgreementStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+model PartnerAgreement {
+  id             String          @id @default(cuid())
+  organisationId String
+  partnerId      String
+  projectId      String?
+  title          String
+  reference      String?
+  startDate      DateTime?
+  endDate        DateTime?
+  amount         Decimal?        @db.Decimal(16, 2)
+  status         AgreementStatus @default(DRAFT)
+  documentId     String?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organisation Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  partner      PartnerOrganisation @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  document     Document?           @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId])
+}
+
+// ---------------------------------------------------------------------------
+// Budgets and expenditure
+// ---------------------------------------------------------------------------
+
+enum BudgetPlanStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  CLOSED
+}
+
+model BudgetPlan {
+  id             String           @id @default(cuid())
+  organisationId String
+  title          String
+  fyStartYear    Int
+  totalAmount    Decimal          @db.Decimal(16, 2)
+  currency       String
+  status         BudgetPlanStatus @default(DRAFT)
+  notes          String?
+  approvedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organisation  Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  allocations   BudgetAllocation[]
+  expenditures  Expenditure[]
+  disbursements Disbursement[]
+
+  @@unique([organisationId, fyStartYear])
+}
+
+model BudgetAllocation {
+  id             String   @id @default(cuid())
+  organisationId String
+  budgetPlanId   String
+  programmeId    String?
+  projectId      String?
+  amount         Decimal  @db.Decimal(16, 2)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  budgetPlan   BudgetPlan    @relation(fields: [budgetPlanId], references: [id], onDelete: Cascade)
+  programme    Programme?    @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  expenditures Expenditure[]
+
+  @@unique([budgetPlanId, projectId])
+  @@index([organisationId, budgetPlanId])
+}
+
+enum ExpenditureStatus {
+  COMMITTED
+  INCURRED
+  CANCELLED
+}
+
+model Expenditure {
+  id               String            @id @default(cuid())
+  organisationId   String
+  budgetPlanId     String
+  projectId        String
+  allocationId     String?
+  description      String
+  category         String?
+  payee            String?
+  amount           Decimal           @db.Decimal(16, 2)
+  status           ExpenditureStatus @default(COMMITTED)
+  date             DateTime
+  paymentReference String?
+  documentId       String?
+  notes            String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  organisation Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  budgetPlan   BudgetPlan        @relation(fields: [budgetPlanId], references: [id], onDelete: Cascade)
+  project      Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  allocation   BudgetAllocation? @relation(fields: [allocationId], references: [id], onDelete: SetNull)
+  document     Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, budgetPlanId, status])
+  @@index([projectId])
+}
+
+enum DisbursementStatus {
+  SCHEDULED
+  DISBURSED
+  CANCELLED
+}
+
+model Disbursement {
+  id               String             @id @default(cuid())
+  organisationId   String
+  budgetPlanId     String
+  projectId        String
+  partnerId        String?
+  amount           Decimal            @db.Decimal(16, 2)
+  status           DisbursementStatus @default(SCHEDULED)
+  date             DateTime
+  paymentReference String?
+  documentId       String?
+  notes            String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  organisation Organisation         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  budgetPlan   BudgetPlan           @relation(fields: [budgetPlanId], references: [id], onDelete: Cascade)
+  project      Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  partner      PartnerOrganisation? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  document     Document?            @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, budgetPlanId])
+}
+
+// ---------------------------------------------------------------------------
+// Tasks, milestones, comments and approvals
+// ---------------------------------------------------------------------------
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  MISSED
+}
+
+model Milestone {
+  id             String          @id @default(cuid())
+  organisationId String
+  projectId      String
+  title          String
+  description    String?
+  dueDate        DateTime?
+  status         MilestoneStatus @default(PENDING)
+  completedAt    DateTime?
+  sortOrder      Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks        Task[]
+
+  @@index([organisationId, dueDate])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model Task {
+  id             String       @id @default(cuid())
+  organisationId String
+  projectId      String?
+  milestoneId    String?
+  partnerId      String?
+  title          String
+  description    String?
+  status         TaskStatus   @default(TODO)
+  priority       TaskPriority @default(MEDIUM)
+  dueDate        DateTime?
+  reminderAt     DateTime?
+  reminderSentAt DateTime?
+  completedAt    DateTime?
+  assigneeId     String?
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organisation Organisation         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project      Project?             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  milestone    Milestone?           @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  partner      PartnerOrganisation? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  assignee     User?                @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy    User?                @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  dependsOn    TaskDependency[]     @relation("TaskDependent")
+  dependents   TaskDependency[]     @relation("TaskPrerequisite")
+
+  @@index([organisationId, status])
+  @@index([assigneeId, status])
+  @@index([organisationId, dueDate])
+}
+
+model TaskDependency {
+  taskId      String
+  dependsOnId String
+
+  task      Task @relation("TaskDependent", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOn Task @relation("TaskPrerequisite", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, dependsOnId])
+}
+
+model Comment {
+  id             String   @id @default(cuid())
+  organisationId String
+  entityType     String
+  entityId       String
+  authorId       String?
+  body           String
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  author       User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, entityType, entityId])
+}
+
+enum ApprovalType {
+  WEBSITE_PUBLISH
+  REPORT_PUBLISH
+  BUDGET_ALLOCATION
+  PROJECT_STATUS
+  IMPACT_MEASUREMENT
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model Approval {
+  id             String         @id @default(cuid())
+  organisationId String
+  type           ApprovalType
+  entityId       String?
+  title          String
+  payload        Json           @default("{}")
+  status         ApprovalStatus @default(PENDING)
+  requestedById  String?
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionNote   String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  requestedBy  User?        @relation("ApprovalRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  decidedBy    User?        @relation("ApprovalDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Impact monitoring
+// ---------------------------------------------------------------------------
+
+enum IndicatorDirection {
+  INCREASE
+  DECREASE
+}
+
+enum MeasurementVerification {
+  UNVERIFIED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+model ImpactIndicator {
+  id                 String             @id @default(cuid())
+  organisationId     String
+  programmeId        String?
+  projectId          String?
+  name               String
+  description        String?
+  unit               String
+  definition         String?
+  baseline           Decimal?           @db.Decimal(18, 4)
+  target             Decimal?           @db.Decimal(18, 4)
+  direction          IndicatorDirection @default(INCREASE)
+  isBeneficiaryMetric Boolean           @default(false)
+  dataSource         String?
+  frequency          String?
+  responsibleId      String?
+  isPublic           Boolean            @default(false)
+  notes              String?
+  archivedAt         DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  organisation Organisation        @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  programme    Programme?          @relation(fields: [programmeId], references: [id], onDelete: SetNull)
+  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  responsible  User?               @relation("IndicatorResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  measurements ImpactMeasurement[]
+
+  @@index([organisationId])
+}
+
+model ImpactMeasurement {
+  id                 String                  @id @default(cuid())
+  organisationId     String
+  indicatorId        String
+  periodStart        DateTime
+  periodEnd          DateTime
+  value              Decimal                 @db.Decimal(18, 4)
+  dataSource         String?
+  notes              String?
+  evidenceDocumentId String?
+  verificationStatus MeasurementVerification @default(UNVERIFIED)
+  verifiedAt         DateTime?
+  verifiedById       String?
+  recordedById       String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  organisation     Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  indicator        ImpactIndicator @relation(fields: [indicatorId], references: [id], onDelete: Cascade)
+  evidenceDocument Document?       @relation(fields: [evidenceDocumentId], references: [id], onDelete: SetNull)
+  verifiedBy       User?           @relation("MeasurementVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  recordedBy       User?           @relation("MeasurementRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([indicatorId, periodEnd])
+}
+
+// ---------------------------------------------------------------------------
+// Documents and reports
+// ---------------------------------------------------------------------------
+
+enum DocumentCategory {
+  POLICY
+  PROJECT_REPORT
+  IMPACT_REPORT
+  BUDGET
+  AGREEMENT
+  DUE_DILIGENCE
+  EVIDENCE
+  OTHER
+}
+
+enum DocumentVisibility {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+}
+
+enum ReviewStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model Document {
+  id               String             @id @default(cuid())
+  organisationId   String
+  title            String
+  description      String?
+  category         DocumentCategory   @default(OTHER)
+  visibility       DocumentVisibility @default(INTERNAL)
+  status           ReviewStatus       @default(DRAFT)
+  projectId        String?
+  partnerId        String?
+  financialYear    Int?
+  periodStart      DateTime?
+  periodEnd        DateTime?
+  currentVersionId String?            @unique
+  archivedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  organisation   Organisation         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project        Project?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  partner        PartnerOrganisation? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  versions       DocumentVersion[]    @relation("DocumentVersions")
+  currentVersion DocumentVersion?     @relation("DocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  agreements     PartnerAgreement[]
+  expenditures   Expenditure[]
+  disbursements  Disbursement[]
+  measurements   ImpactMeasurement[]
+  reports        Report[]
+
+  @@index([organisationId, category])
+  @@index([organisationId, visibility, status])
+}
+
+model DocumentVersion {
+  id             String   @id @default(cuid())
+  organisationId String
+  documentId     String
+  version        Int
+  mediaAssetId   String
+  notes          String?
+  uploadedById   String?
+  createdAt      DateTime @default(now())
+
+  organisation      Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  document          Document     @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+  currentOf         Document?    @relation("DocumentCurrentVersion")
+  mediaAsset        MediaAsset   @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  uploadedBy        User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, version])
+}
+
+enum ReportType {
+  CSR_ANNUAL
+  PROJECT
+  IMPACT
+  BUDGET_SUMMARY
+}
+
+enum ReportStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
+
+model Report {
+  id             String       @id @default(cuid())
+  organisationId String
+  title          String
+  type           ReportType
+  status         ReportStatus @default(DRAFT)
+  summary        String?
+  fyStartYear    Int?
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  projectId      String?
+  programmeId    String?
+  documentId     String?
+  snapshot       Json?
+  isPublic       Boolean      @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  programme    Programme?   @relation(fields: [programmeId], references: [id], onDelete: SetNull)
+  document     Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Blog CMS
+// ---------------------------------------------------------------------------
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model BlogPost {
+  id              String     @id @default(cuid())
+  organisationId  String
+  title           String
+  slug            String
+  excerpt         String?
+  content         String     @default("")
+  status          PostStatus @default(DRAFT)
+  publishedAt     DateTime?
+  scheduledFor    DateTime?
+  authorId        String?
+  featuredImageId String?
+  ogImageId       String?
+  seoTitle        String?
+  seoDescription  String?
+  canonicalUrl    String?
+  readingMinutes  Int        @default(1)
+  isFeatured      Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  organisation  Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  author        User?        @relation("BlogAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  featuredImage MediaAsset?  @relation("PostFeaturedImage", fields: [featuredImageId], references: [id], onDelete: SetNull)
+  ogImage       MediaAsset?  @relation("PostOgImage", fields: [ogImageId], references: [id], onDelete: SetNull)
+  categories    Category[]
+  tags          Tag[]
+
+  @@unique([organisationId, slug])
+  @@index([organisationId, status, publishedAt])
+  @@index([status, scheduledFor])
+}
+
+model Category {
+  id             String     @id @default(cuid())
+  organisationId String
+  name           String
+  slug           String
+  description    String?
+  createdAt      DateTime   @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  posts        BlogPost[]
+
+  @@unique([organisationId, slug])
+}
+
+model Tag {
+  id             String     @id @default(cuid())
+  organisationId String
+  name           String
+  slug           String
+  createdAt      DateTime   @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  posts        BlogPost[]
+
+  @@unique([organisationId, slug])
+}
+
+model AuthorProfile {
+  id             String   @id @default(cuid())
+  organisationId String
+  userId         String
+  displayName    String
+  bio            String?
+  avatarId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatar       MediaAsset?  @relation("AuthorAvatar", fields: [avatarId], references: [id], onDelete: SetNull)
+
+  @@unique([organisationId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Media library
+// ---------------------------------------------------------------------------
+
+enum MediaVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+model MediaAsset {
+  id             String          @id @default(cuid())
+  organisationId String
+  storageKey     String          @unique
+  filename       String
+  mimeType       String
+  size           Int
+  width          Int?
+  height         Int?
+  altText        String?
+  title          String?
+  description    String?
+  visibility     MediaVisibility @default(PUBLIC)
+  checksum       String?
+  uploadedById   String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organisation     Organisation      @relation("OrganisationMedia", fields: [organisationId], references: [id], onDelete: Cascade)
+  uploadedBy       User?             @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  logoOf           Organisation[]    @relation("OrganisationLogo")
+  faviconOf        Organisation[]    @relation("OrganisationFavicon")
+  projectCovers    Project[]         @relation("ProjectCover")
+  projectMedia     ProjectMedia[]
+  postFeatured     BlogPost[]        @relation("PostFeaturedImage")
+  postOg           BlogPost[]        @relation("PostOgImage")
+  authorAvatars    AuthorProfile[]   @relation("AuthorAvatar")
+  documentVersions DocumentVersion[]
+  pageOgImages     Page[]            @relation("PageOgImage")
+
+  @@index([organisationId, mimeType])
+  @@index([organisationId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Website builder
+// ---------------------------------------------------------------------------
+
+// Draft site configuration (header, footer, blog layout, SEO defaults). The
+// published configuration lives in the ThemeVersion referenced by WebsiteTheme.
+model WebsiteSettings {
+  id             String    @id @default(cuid())
+  organisationId String    @unique
+  domain         String?   @unique
+  draftConfig    Json
+  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+}
+
+model WebsiteTheme {
+  id                    String    @id @default(cuid())
+  organisationId        String    @unique
+  templateKey           String    @default("corporate-green")
+  draftTokens           Json
+  publishedVersionId    String?   @unique
+  hasUnpublishedChanges Boolean   @default(true)
+  publishedAt           DateTime?
+  publishedById         String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  organisation     Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  publishedVersion ThemeVersion? @relation("PublishedThemeVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+}
+
+enum ThemeVersionKind {
+  PUBLISHED
+  BACKUP
+}
+
+model ThemeVersion {
+  id             String           @id @default(cuid())
+  organisationId String
+  version        Int
+  kind           ThemeVersionKind @default(PUBLISHED)
+  templateKey    String?
+  tokens         Json
+  siteConfig     Json
+  navigation     Json
+  note           String?
+  createdById    String?
+  createdAt      DateTime         @default(now())
+
+  organisation Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  publishedBy  WebsiteTheme? @relation("PublishedThemeVersion")
+
+  @@unique([organisationId, version])
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PageKind {
+  HOME
+  STANDARD
+  LEGAL
+}
+
+model Page {
+  id                    String     @id @default(cuid())
+  organisationId        String
+  title                 String
+  slug                  String
+  kind                  PageKind   @default(STANDARD)
+  status                PageStatus @default(DRAFT)
+  seoTitle              String?
+  seoDescription        String?
+  ogImageId             String?
+  publishedRevisionId   String?    @unique
+  hasUnpublishedChanges Boolean    @default(true)
+  publishedAt           DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  organisation      Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  ogImage           MediaAsset?    @relation("PageOgImage", fields: [ogImageId], references: [id], onDelete: SetNull)
+  sections          PageSection[]
+  revisions         PageRevision[] @relation("PageRevisions")
+  publishedRevision PageRevision?  @relation("PublishedPageRevision", fields: [publishedRevisionId], references: [id], onDelete: SetNull)
+  navigationItems   NavigationItem[]
+
+  @@unique([organisationId, slug])
+}
+
+model PageSection {
+  id             String   @id @default(cuid())
+  organisationId String
+  pageId         String
+  type           String
+  props          Json
+  hidden         Boolean  @default(false)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  page         Page         @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, sortOrder])
+}
+
+model PageRevision {
+  id             String   @id @default(cuid())
+  organisationId String
+  pageId         String
+  revision       Int
+  snapshot       Json
+  note           String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  page         Page         @relation("PageRevisions", fields: [pageId], references: [id], onDelete: Cascade)
+  publishedOf  Page?        @relation("PublishedPageRevision")
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([pageId, revision])
+}
+
+enum NavLocation {
+  HEADER
+  FOOTER
+}
+
+enum NavLinkType {
+  PAGE
+  SYSTEM
+  EXTERNAL
+}
+
+model NavigationItem {
+  id             String      @id @default(cuid())
+  organisationId String
+  location       NavLocation @default(HEADER)
+  label          String
+  type           NavLinkType @default(SYSTEM)
+  pageId         String?
+  systemRoute    String?
+  url            String?
+  parentId       String?
+  openInNewTab   Boolean     @default(false)
+  hidden         Boolean     @default(false)
+  sortOrder      Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organisation Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  page         Page?            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  parent       NavigationItem?  @relation("NavChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children     NavigationItem[] @relation("NavChildren")
+
+  @@index([organisationId, location, sortOrder])
+}
+
+// ---------------------------------------------------------------------------
+// Enquiries, notifications and audit
+// ---------------------------------------------------------------------------
+
+enum EnquiryStatus {
+  NEW
+  IN_PROGRESS
+  CLOSED
+}
+
+model Enquiry {
+  id               String        @id @default(cuid())
+  organisationId   String
+  name             String
+  email            String
+  phone            String?
+  organisationName String?
+  category         String
+  message          String
+  consent          Boolean
+  status           EnquiryStatus @default(NEW)
+  internalNotes    String?
+  assignedToId     String?
+  ipHash           String?
+  userAgent        String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  assignedTo   User?        @relation("EnquiryAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, status, createdAt])
+}
+
+model Notification {
+  id             String    @id @default(cuid())
+  organisationId String
+  userId         String
+  type           String
+  title          String
+  body           String?
+  link           String?
+  dedupeKey      String?
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt, createdAt])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organisationId String?
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String?
+  summary        String
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  organisation Organisation? @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  actor        User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, createdAt])
+  @@index([organisationId, entityType, entityId])
+}
