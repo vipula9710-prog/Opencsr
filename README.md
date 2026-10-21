@@ -19,7 +19,7 @@ OpenCSR combines a CSR CRM, project management, budget and impact tracking, NGO/
 | Tasks & approvals | Tasks with assignees, priorities, dependencies, reminders and comments; configurable approval steps for publishing, reports, budgets, project status and impact verification |
 | Reports & documents | Private document store with versions, review workflow and visibility levels; generated annual/project/impact/budget reports frozen on approval; PDF and print |
 | Website builder | Three-panel visual editor with live desktop/tablet/mobile preview; 16 section types; full colour, typography and component tokens; header/footer; navigation; blog layout; 5 templates; drafts, autosave, publish, discard, revisions and rollback |
-| Public website & blog | Database-driven pages, projects, blog (categories, tags, authors, scheduling, RSS), reports, contact form with spam protection, SEO metadata, sitemap, robots.txt, structured data |
+| Public website & blog | Database-driven pages, projects, blog (categories, tags, authors, scheduling, RSS, WordPress import), reports, contact form with spam protection, SEO metadata, sitemap, robots.txt, structured data |
 | Media library | Uploads with content-type validation, alt text, public/private visibility, replace, reuse; local disk or any S3-compatible storage |
 
 See [docs/feature-status.md](docs/feature-status.md) for a precise implementation status and known limitations.

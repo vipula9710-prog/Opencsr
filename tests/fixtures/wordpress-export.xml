@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Fictional WordPress export used by tests. -->
+<rss version="2.0" xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:wp="http://wordpress.org/export/1.2/">
+<channel>
+  <title>Example Trust Blog</title>
+  <link>https://wp.example.org</link>
+  <wp:wxr_version>1.2</wp:wxr_version>
+  <item>
+    <title>Tree planting &amp; community day</title>
+    <pubDate>Mon, 03 Jun 2024 10:00:00 +0000</pubDate>
+    <dc:creator><![CDATA[editor]]></dc:creator>
+    <content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>We planted trees.</p>
+<!-- /wp:paragraph -->
+[caption id="attachment_9" align="aligncenter" width="300"]<img src="https://wp.example.org/wp-content/uploads/2024/06/trees.png" alt="Volunteers planting" /> Volunteers at work[/caption]
+<script>alert(1)</script>
+[gallery ids="1,2"]]]></content:encoded>
+    <excerpt:encoded><![CDATA[A day of planting.]]></excerpt:encoded>
+    <wp:post_id>10</wp:post_id>
+    <wp:post_date_gmt><![CDATA[2024-06-03 10:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[tree-planting-day]]></wp:post_name>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <category domain="category" nicename="environment"><![CDATA[Environment]]></category>
+    <category domain="post_tag" nicename="volunteering"><![CDATA[Volunteering]]></category>
+    <wp:postmeta><wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key><wp:meta_value><![CDATA[9]]></wp:meta_value></wp:postmeta>
+    <wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_metadesc]]></wp:meta_key><wp:meta_value><![CDATA[Our community tree planting day.]]></wp:meta_value></wp:postmeta>
+    <wp:postmeta><wp:meta_key><![CDATA[_yoast_wpseo_title]]></wp:meta_key><wp:meta_value><![CDATA[%%title%% %%sep%% %%sitename%%]]></wp:meta_value></wp:postmeta>
+  </item>
+  <item>
+    <title>Classic editor post</title>
+    <content:encoded><![CDATA[First line
+second line
+
+Second paragraph with [1] reference.]]></content:encoded>
+    <wp:post_id>11</wp:post_id>
+    <wp:post_date_gmt><![CDATA[0000-00-00 00:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[]]></wp:post_name>
+    <wp:status><![CDATA[draft]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+    <category domain="category" nicename="environment"><![CDATA[Environment]]></category>
+  </item>
+  <item>
+    <title>Coming soon</title>
+    <content:encoded><![CDATA[<p>Future post.</p>]]></content:encoded>
+    <wp:post_id>12</wp:post_id>
+    <wp:post_date_gmt><![CDATA[2099-01-01 09:00:00]]></wp:post_date_gmt>
+    <wp:post_name><![CDATA[coming-soon]]></wp:post_name>
+    <wp:status><![CDATA[future]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+  </item>
+  <item>
+    <title>Deleted post</title>
+    <content:encoded><![CDATA[<p>Gone.</p>]]></content:encoded>
+    <wp:post_id>13</wp:post_id>
+    <wp:post_name><![CDATA[deleted]]></wp:post_name>
+    <wp:status><![CDATA[trash]]></wp:status>
+    <wp:post_type><![CDATA[post]]></wp:post_type>
+  </item>
+  <item>
+    <title>About us</title>
+    <content:encoded><![CDATA[<p>A page.</p>]]></content:encoded>
+    <wp:post_id>14</wp:post_id>
+    <wp:status><![CDATA[publish]]></wp:status>
+    <wp:post_type><![CDATA[page]]></wp:post_type>
+  </item>
+  <item>
+    <title>trees.png</title>
+    <wp:post_id>9</wp:post_id>
+    <wp:post_type><![CDATA[attachment]]></wp:post_type>
+    <wp:attachment_url><![CDATA[https://wp.example.org/wp-content/uploads/2024/06/trees.png]]></wp:attachment_url>
+  </item>
+</channel>
+</rss>

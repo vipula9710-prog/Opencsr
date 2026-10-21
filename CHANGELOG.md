@@ -2,6 +2,11 @@
 
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Blog CMS → **Import from WordPress**: upload a WordPress export file (WXR) to import posts with their status, dates, categories, tags, excerpts and Yoast SEO descriptions. Featured and inline images can be copied into the media library. Re-importing skips posts that already exist. Remote image downloads are protected against server-side request forgery (private/internal addresses, redirects and DNS rebinding are blocked).
+
 ## [0.1.0] — Initial release
 
 ### Added

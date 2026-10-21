@@ -19,6 +19,7 @@ Status of release **0.1.0**. “Implemented” means the feature persists data i
 | Documents (private storage, versions, visibility levels, review workflow, public download after approval) | Implemented ✅T |
 | Reports (annual/project/impact/budget generated from records, frozen on approval, print view, PDF, public publication) | Implemented ✅T |
 | Blog CMS (TipTap editor, categories, tags, author profiles, drafts, scheduling, SEO fields, canonical, OG image, JSON-LD, RSS, sitemap, related posts, search, pagination) | Implemented ✅T (draft privacy, scheduling job) |
+| WordPress import (WXR export file: posts, statuses, dates, categories, tags, excerpts, Yoast SEO descriptions, featured and inline images copied to the media library with SSRF protection, idempotent re-import) | Implemented ✅T |
 | Public website (home, CSR pages, projects, blog, reports, contact, privacy/terms templates, 404, SEO, sitemap, robots) | Implemented ✅E2E |
 | Website builder (all routes in the specification, 16 sections, tokens, templates, previews, publish, revisions, rollback) | Implemented ✅T ✅E2E |
 | Media library (validated uploads, alt text, visibility, replace, usage-checked delete, picker) | Implemented ✅T (type detection, access) |
@@ -39,7 +40,8 @@ Status of release **0.1.0**. “Implemented” means the feature persists data i
 - **Platform administrators** can access every organisation by design.
 - **Sessions** have a fixed lifetime (no sliding renewal).
 - The UI is English-only (content can be in any language; Devanagari fonts are bundled).
-- No bulk import, data-subject export, or two-factor authentication yet.
+- **WordPress import** covers posts only (not pages, comments, menus or custom post types). Imported posts are authored by the importing user. Shortcodes are removed. Files up to 25 MB; at most 300 images per import. Image copying makes direct outbound HTTP(S) requests, so it needs the WordPress site to be publicly reachable and does not go through an outbound proxy; failed images keep linking to the original site and are listed in the import report.
+- No CSV/Excel bulk import, data-subject export, or two-factor authentication yet.
 
 ## Not verified in the development environment
 
@@ -49,4 +51,4 @@ Status of release **0.1.0**. “Implemented” means the feature persists data i
 
 ## Roadmap ideas
 
-Two-factor authentication · CSV/Excel import · multi-step approvals · image resizing · data export for data-subject requests · translations · webhooks/API tokens · per-organisation SMTP settings.
+Two-factor authentication · WordPress pages import · CSV/Excel import · multi-step approvals · image resizing · data export for data-subject requests · translations · webhooks/API tokens · per-organisation SMTP settings.

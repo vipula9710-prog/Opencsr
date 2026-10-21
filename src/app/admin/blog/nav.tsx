@@ -6,6 +6,7 @@ const ITEMS = [
   { href: "/admin/blog/categories", label: "Categories" },
   { href: "/admin/blog/tags", label: "Tags" },
   { href: "/admin/blog/authors", label: "Authors" },
+  { href: "/admin/blog/import", label: "Import from WordPress" },
 ];
 
 export function BlogNav({ active }: { active: string }) {
